@@ -1,8 +1,19 @@
 {
-  "dependencies": {
-    "@google/clasp": "^2.4.2"
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node esbuild.js",
+    "push": "clasp push",
+    "open": "clasp open",
+    "deploy": "npm run build && npm run push"
   },
   "devDependencies": {
-    "@types/google-apps-script": "^1.0.83"
+    "@types/google-apps-script": "^1.0.83",
+    "esbuild": "^0.23.0",
+    "esbuild-gas-plugin": "^0.8.0",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@google/clasp": "^2.4.2"
   }
 }
