@@ -9,11 +9,14 @@
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
+    "@types/markdown-it": "^14.1.2",
     "esbuild": "^0.23.0",
     "esbuild-gas-plugin": "^0.8.0",
+    "npm-check-updates": "^16.14.20",
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@google/clasp": "^2.4.2"
+    "@google/clasp": "^2.4.2",
+    "markdown-it": "^14.1.0"
   }
 }
