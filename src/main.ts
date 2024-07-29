@@ -1,15 +1,17 @@
+import markdownit from "markdown-it";
+
 type MatchInfo = {
 	date: Date,
 	matchCount: number,
 }
 
-function isValidDate(dateString) {
+function isValidDate(dateString: string) {
 	// 日付フォーマットの検証をここで行います（例としてYYYY/MM/DDフォーマットを使用）
 	var regex = /^\d{4}\/\d{2}\/\d{2}$/;
 	return regex.test(dateString);
 }
 
-function getMatchCount(text) {
+function getMatchCount(text: string) {
 	var match = text.match(/^第(\d+)試合$/);
 	if (match) {
 		return parseInt(match[1], 10);
@@ -89,16 +91,64 @@ export const getMatchInfoList = (paragraphs: ReadonlyArray<GoogleAppsScript.Docu
 	return [matchInfo]
 }
 
+
+
 export const test = (): void => {
 	// 深夜のAmongUs会のドキュメントを取得
-	const documentId = "1jaagzHsuiGC4TSTHuHBOP9cvb4io0xLNl1arlaMr-9";
+	const documentId = "1jaagzHsuiGC4TSTHuHBOP9cvb4io0xLNl1arlaMr-9I";
 	const doc = DocumentApp.openById(documentId);
 
-	const paragraphs = doc.getBody().getParagraphs();
-	paragraphs.forEach(paragraph => {
-		const text = paragraph.getText();
-		const numChildren = paragraph.getNumChildren()
-		Logger.log(`text: ${text}/numChildren: ${numChildren}`)
+	// const paragraphs = doc.getBody().getParagraphs();
+	// paragraphs.forEach(paragraph => {
+	// 	const text = paragraph.getText();
+	// 	const numChildren = paragraph.getNumChildren()
+	// 	Logger.log(`text: ${text}/numChildren: ${numChildren}`)
+
+	// })
+
+	const url = `https://docs.google.com/feeds/download/documents/export/Export?exportFormat=markdown&id=${documentId}`;
+	const response = UrlFetchApp.fetch(url, {
+		headers: { authorization: "Bearer " + ScriptApp.getOAuthToken() },
+	});
+
+	const mdText = response.getContentText();
+	const mdi = markdownit()
+	const tokens = mdi.parse(mdText, {})
+
+	// 「試合ログ」の段落を探す
+	const matchLogStartIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("試合ログ"))
+	const matchLogTokens = tokens.slice(matchLogStartIndex)
+	const matchLogs = []
+
+
+	type MovieInfo = {
+		contributorName: string,
+		url: URL
+	}
+	// ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
+	type MatchLog = {
+		date?: Date,
+		matchCount?: number,
+		mapName?: string,
+		memberNames?: ReadonlyArray<string>
+		imposterNames?: ReadonlyArray<string>,
+		winner?: "クルー" | "インポスター",
+		overview?: string,
+		movieInfoList?: ReadonlyArray<MovieInfo>
+	}
+
+	matchLogTokens.forEach(matchLog => {
+		Logger.log(matchLog)
+		if (matchLog.type === "heading_open") {
+			switch (matchLog.tag) {
+				case "h2"://開催日
+
+					break;
+				case "h3"://試合数
+
+					break;
+			}
+		}
 
 	})
 
