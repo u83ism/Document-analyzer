@@ -1,96 +1,92 @@
 import markdownit from "markdown-it";
 
-type MatchInfo = {
-	date: Date,
-	matchCount: number,
-}
-
-function isValidDate(dateString: string) {
-	// 日付フォーマットの検証をここで行います（例としてYYYY/MM/DDフォーマットを使用）
-	var regex = /^\d{4}\/\d{2}\/\d{2}$/;
-	return regex.test(dateString);
-}
-
-function getMatchCount(text: string) {
-	var match = text.match(/^第(\d+)試合$/);
-	if (match) {
-		return parseInt(match[1], 10);
+const extractMatchCount = (text: string): number => {
+	// 正規表現で「第」と「試合」の間の数字部分を抽出
+	const match = text.match(/第(\d+)試合/);
+	if (!match) {
+		throw new Error(' "第●試合"という書式である必要があります');
 	}
-	return null;
+	const number = parseInt(match[1], 10);
+	if (isNaN(number)) {
+		throw new Error('試合番号が数字として取得できません');
+	}
+	return number;
 }
 
-/**
- * ドキュメントのうち、試合ログ以降の部分を取得する
- * 
- * @param paragraphs 
- * @returns 
- */
-const getMatchLogParagraphs = (paragraphs: ReadonlyArray<GoogleAppsScript.Document.Paragraph>): Array<GoogleAppsScript.Document.Paragraph> => {
-	const matchLogIndex = paragraphs.findIndex((paragraph => {
-		const heading = paragraph.getHeading();
-		const text = paragraph.getText();
 
-		return heading === DocumentApp.ParagraphHeading.HEADING1 && text.includes("試合ログ")
-	}))
-	const matchLogParagraphs = paragraphs.slice(matchLogIndex)
-	return matchLogParagraphs
+type MovieInfo = {
+	contributorName: string,
+	url: URL
 }
 
-export const getMatchInfoList = (paragraphs: ReadonlyArray<GoogleAppsScript.Document.Paragraph>): Array<MatchInfo> => {
-	const matchLogParagraphs = getMatchLogParagraphs(paragraphs)
-
-	// 
-	const headingToPurposeMap = {
-		title: DocumentApp.ParagraphHeading.HEADING1,
-		date: DocumentApp.ParagraphHeading.HEADING2,
-		matchCount: DocumentApp.ParagraphHeading.HEADING3,
-	} as const
-
-
-	const matchInfoList = []
-
-	matchLogParagraphs.filter(paragraph => {
-		const heading = paragraph.getHeading();
-		// 「試合ログ」そのものはいらない
-		return heading !== headingToPurposeMap.title
-	}).forEach(paragraph => {
-		const heading = paragraph.getHeading();
-		const text = paragraph.getText();
-		if (heading === headingToPurposeMap.date) {
-
-		}
-
-		Logger.log(`heading:${heading}/text:${text}`)
-	})
-
-
-	// paragraphs.forEach(function (paragraph) {
-	// 	// const text = paragraph.getText();
-	// 	const heading = paragraph.getHeading();
-
-	// 	if (heading === DocumentApp.ParagraphHeading.HEADING2 && isValidDate(text)) {
-	// 		currentDate = text;
-	// 	}
-
-	// 	if (heading === DocumentApp.ParagraphHeading.HEADING3) {
-	// 		var matchCount = getMatchCount(text);
-	// 		if (matchCount !== null) {
-	// 			data.push({
-	// 				date: currentDate,
-	// 				matchCount: matchCount
-	// 			});
-	// 		}
-	// 	}
-	// });
-
-	const matchInfo: MatchInfo = {
-		date: new Date(),
-		matchCount: 1
-	};
-
-	return [matchInfo]
+// ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
+type MatchLog = {
+	date?: Date,
+	matchCount?: number,
+	mapName?: string,
+	memberNames?: ReadonlyArray<string>
+	imposterNames?: ReadonlyArray<string>,
+	winner?: "クルー" | "インポスター",
+	overview?: string,
+	movieInfoList?: ReadonlyArray<MovieInfo>
 }
 
+
+const splitLogAndMovieParts = (texts: Array<string>): Array<Array<string>> => {
+	const moviePartKeyword = "【動画】"
+	const index = texts.findIndex(text => text.includes(moviePartKeyword));
+	if (index === -1) {
+		// キーワードが見つからなかった場合、元の配列をそのまま返す
+		return [texts, []];
+	}
+	const beforeKeyword = texts.slice(0, index);
+	const afterKeyword = texts.slice(index + 1);
+	return [beforeKeyword, afterKeyword];
+}
+
+
+const separateKeyAndValue = (text: string): [string, string] => {
+	const separator = ":"
+	const parts = text.split(separator); // コロンでキーと値を分割
+	Logger.log(`---separate Key And Value---`)
+	if (parts.length < 2) {
+		// コロンがないか、値が空の場合は無視
+		throw new Error(`書式が間違っています。${separator}で区切ってある必要があります。 対象のテキスト:${parts}`);
+	}
+	Logger.log(`---1---`)
+	const key = parts[0].trim();
+	// 文中に":"が有って3つ以上に分かれた場合に備えてコロン以降の部分をすべて結合する
+	const value = parts.slice(1).join(separator).trim();
+	Logger.log(`---2---`)
+	return [key, value]
+}
+
+const parseStringToObject = (text: string): any => {
+	const lines = text.split('\n'); // 改行で行を分割
+	const result: any = {};
+
+	const [logParts, movieParts] = splitLogAndMovieParts(lines)
+
+	logParts.forEach(line => {
+		const [key, value] = separateKeyAndValue(line)
+		result[key] = value;
+	});
+
+	// moviePart.forEach(line => {
+	// 	const [key, value] = separateKeyAndValue(line)
+	// 	result["動画"][key] = value;
+	// })
+	return result;
+}
+
+const extractMatchInfo = (text: string): MatchLog => {
+
+
+
+
+
+	return {}
+}
 
 
 export const test = (): void => {
@@ -118,42 +114,73 @@ export const test = (): void => {
 	// 「試合ログ」の段落を探す
 	const matchLogStartIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("試合ログ"))
 	const matchLogTokens = tokens.slice(matchLogStartIndex)
-	const matchLogs = []
 
-
-	type MovieInfo = {
-		contributorName: string,
-		url: URL
+	const matchLogs: Array<MatchLog> = [];
+	// ループを跨いで管理する必要のある状態
+	type State = {
+		enableTag: string,
+		dateText: string,
+		matchCount: number,
 	}
-	// ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
-	type MatchLog = {
-		date?: Date,
-		matchCount?: number,
-		mapName?: string,
-		memberNames?: ReadonlyArray<string>
-		imposterNames?: ReadonlyArray<string>,
-		winner?: "クルー" | "インポスター",
-		overview?: string,
-		movieInfoList?: ReadonlyArray<MovieInfo>
+	const state: State = {
+		enableTag: "",
+		dateText: "",
+		matchCount: 0,
 	}
 
-	matchLogTokens.forEach(matchLog => {
-		Logger.log(matchLog)
-		if (matchLog.type === "heading_open") {
-			switch (matchLog.tag) {
-				case "h2"://開催日
+	matchLogTokens.forEach(token => {
+		Logger.log(token)
 
-					break;
-				case "h3"://試合数
+		switch (token.type) {
+			case "heading_open":
+				state.enableTag = token.tag
+				break;
+			case "heading_close":
+				state.enableTag = ""
+				break;
+			case "inline":
 
-					break;
-			}
+				switch (state.enableTag) {
+					case "h2":
+						// 日付（"6/2昼"とかあるのでstringにする必要あり注意）
+						state.dateText = token.content
+						break;
+					case "h3":
+						// 試合番号
+						state.matchCount = extractMatchCount(token.content)
+						break;
+					default:
+						// 試合データ
+						const object = parseStringToObject(token.content)
+						Logger.log(object)
+						break;
+				}
+
+				break;
+			default:
+				break;
 		}
-
 	})
 
 }
 
+
+
+const testError = () => {
+	throw new Error("Error!!")
+}
+
+const testErrorInNestedFunction = () => {
+	const texts = ["A", "B", "C"]
+	texts.forEach(text => { testError() })
+}
+
+export const testErrorInDobleNestedFunction = () => {
+	const numbers = [1, 2, 3]
+	numbers.forEach((number) => testErrorInNestedFunction())
+}
+
+
 // GASから参照したい関数はglobalオブジェクトに渡してあげる必要がある
-(global as any).getMatchInfoList = getMatchInfoList;
 (global as any).test = test;
+(global as any).testErrorInDobleNestedFunction = testErrorInDobleNestedFunction;
