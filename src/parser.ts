@@ -1,3 +1,4 @@
+import { type Token } from "markdown-it";
 
 type Mode = "クラシック" | "かくれんぼ"
 type Team = "クルー" | "インポスター"
@@ -121,7 +122,7 @@ type MovieInfo = {
 
 // ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
 // スプシのカラム名と被せるためにあえて日本語プロパティ名にしている
-type MatchInfo = {
+export type MatchInfo = {
 	// ●/●昼という表記もあるのでいったんstringで……
 	日付: string,
 	試合数: number,
@@ -135,7 +136,6 @@ type MatchInfo = {
 }
 
 const getMovieInfo = (rawData: MovieRawData): MovieInfo => {
-	console.info(rawData);
 	const namePattern = /^(.+?)視点/
 	const nameMatch = rawData.nameText.match(namePattern);
 	let contributorName: string;
@@ -179,4 +179,56 @@ export const getMatchInfo = (state: State, rawData: MatchRawData): MatchInfo => 
 		インポスター: imposterNames
 	}
 	return matchInfo
+}
+export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo> => {
+	// ループを跨いで管理する必要のある状態
+	// ドキュメントやスプレッドシートの項目名に合わせてあえて日本語プロパティ名にしている
+	const state: State = {
+		enableTag: "",
+		日付: "",
+		試合数: 0,
+		モード: "クラシック"
+	}
+
+	const matchInfoList: Array<MatchInfo> = []
+
+	tokens.forEach(token => {
+		// console.debug(token)
+		switch (token.type) {
+			case "heading_open":
+				state.enableTag = token.tag
+				break;
+			case "heading_close":
+				state.enableTag = ""
+				break;
+			case "inline":
+				switch (state.enableTag) {
+					case "h2":
+						// 日付（"6/2昼"とかあるのでstringにする必要あり注意）
+						state.日付 = token.content
+						break;
+					case "h3":
+						// 試合番号
+						[state.試合数, state.モード] = extractMatchCountAndMode(token.content)
+						break;
+					case "":
+						// 「とりまとめシートの「試合ログ」に移動しました。」部分除け
+						if (state.試合数 !== 0) {
+							// 試合データ
+							const rawData = parseToMatchRawData(token.content)
+							if (rawData === null) {
+								console.warn("---解析に失敗しました---")
+								console.warn(token)
+							} else {
+								const matchInfo = getMatchInfo(state, rawData)
+								matchInfoList.push(matchInfo)
+							}
+						}
+						break;
+				}
+				break;
+		}
+	})
+
+	return matchInfoList
 }
