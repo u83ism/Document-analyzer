@@ -1,29 +1,37 @@
-import markdownit from "markdown-it";
 import { getMatchInfoList } from "./parser";
+import { read, write } from "./storage";
+
+export type Team = "クルー" | "インポスター"
+export type MovieInfo = {
+	contributorName: string,
+	urlText: string
+}
+// ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
+// スプシのカラム名と被せるためにあえて日本語プロパティ名にしている
+export type MatchInfo = {
+	// ●/●昼という表記もあるのでいったんstringで……
+	日付: string,
+	試合数: number,
+	モード: string,
+	マップ: string,
+	勝利: Team,
+	動画: ReadonlyArray<MovieInfo>,
+	概要: string,
+	参加メンバー: Array<string>
+	インポスター: Array<string>,
+}
+
 
 export const test = (): void => {
 	// 深夜のAmongUs会のドキュメントを取得
-	const documentId = "1jaagzHsuiGC4TSTHuHBOP9cvb4io0xLNl1arlaMr-9I";
-
-	const documentUrlText = `https://docs.google.com/feeds/download/documents/export/Export?exportFormat=markdown&id=${documentId}`;
-	const response = UrlFetchApp.fetch(documentUrlText, {
-		headers: { authorization: "Bearer " + ScriptApp.getOAuthToken() },
-	});
-
-	const mdText = response.getContentText();
-	const mdi = markdownit()
-	const tokens = mdi.parse(mdText, {})
-
-	// 「試合ログ」の次段落を探す
-	const matchLogStartIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("試合ログ")) + 1
-	// 「（テンプレート）」を探す
-	const matchLogEndIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("（テンプレート）")) + 1
-	const matchLogTokens = tokens.slice(matchLogStartIndex, matchLogEndIndex)
-
+	const documentId = PropertiesService.getScriptProperties().getProperty("documentId");
+	if (documentId === null) { throw new Error(`documentIdを取得できませんでした。GASの「プロジェクトの設定」→「スクリプト プロパティ」を確認してください`) }
+	// とりまとめのスプレッドシートを取得
+	const spreadsheetId = PropertiesService.getScriptProperties().getProperty("spreadsheetId");
+	if (spreadsheetId === null) { throw new Error(`spreadsheetIdを取得できませんでした。GASの「プロジェクトの設定」→「スクリプト プロパティ」を確認してください`) }
+	const matchLogTokens = read(documentId)
 	const matchInfoList = getMatchInfoList(matchLogTokens)
-	const spreadSheetId = "1_3ni67C36-eeqGRbA80_5YfWghFSUAVVdtL7tU9MraM"
-
-
+	write(spreadsheetId, matchInfoList)
 }
 
 

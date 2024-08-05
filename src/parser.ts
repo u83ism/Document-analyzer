@@ -1,7 +1,7 @@
 import { type Token } from "markdown-it";
+import { MatchInfo, Team, MovieInfo } from "./main";
 
 type Mode = "クラシック" | "かくれんぼ"
-type Team = "クルー" | "インポスター"
 export type State = {
 	enableTag: string,
 	日付: string,
@@ -114,26 +114,6 @@ export const parseToMatchRawData = (text: string): MatchRawData | null => {
 	}
 }
 
-
-type MovieInfo = {
-	contributorName: string,
-	urlText: string
-}
-
-// ループ回しながら組み立てるしかないので全部Optionalにせざるを得ない
-// スプシのカラム名と被せるためにあえて日本語プロパティ名にしている
-export type MatchInfo = {
-	// ●/●昼という表記もあるのでいったんstringで……
-	日付: string,
-	試合数: number,
-	モード: string,
-	マップ: string,
-	勝利: Team,
-	動画: ReadonlyArray<MovieInfo>,
-	概要: string,
-	参加メンバー: Array<string>
-	インポスター: Array<string>,
-}
 
 const getMovieInfo = (rawData: MovieRawData): MovieInfo => {
 	const namePattern = /^(.+?)視点/
