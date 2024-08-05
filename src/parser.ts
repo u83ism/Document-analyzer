@@ -155,7 +155,7 @@ export const getMatchInfo = (state: State, rawData: MatchRawData): MatchInfo => 
 		勝利: rawData.勝利,
 		動画: movieInfoList,
 		概要: rawData.概要,
-		参加メンバー: memberNames,
+		参加者: memberNames,
 		インポスター: imposterNames
 	}
 	return matchInfo

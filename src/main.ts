@@ -17,7 +17,7 @@ export type MatchInfo = {
 	勝利: Team,
 	動画: ReadonlyArray<MovieInfo>,
 	概要: string,
-	参加メンバー: Array<string>
+	参加者: Array<string>
 	インポスター: Array<string>,
 }
 
