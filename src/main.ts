@@ -1,7 +1,23 @@
 import { getMatchInfoList } from "./parser";
 import { read, write } from "./storage";
 
-export type Team = "クルー" | "インポスター"
+export const modeNames = ["クラシック", "かくれんぼ"] as const
+export type ModeName = typeof modeNames[number]
+export const isModeName = (text: string): text is ModeName => {
+	return modeNames.some(name => name === text)
+}
+export const teamNames = ["クルー", "インポスター"] as const
+export type TeamName = typeof teamNames[number]
+export const isTeamName = (text: string): text is TeamName => {
+	return teamNames.some(name => name === text)
+}
+export const amongUsMapNames = ["The Skeld", "MIRA HQ", "Polus", "The Airship", "The Fungle"] as const;
+export type AmongUsMapName = typeof amongUsMapNames[number]
+export const isAmoungUsMapName = (text: string): text is AmongUsMapName => {
+	return amongUsMapNames.some(name => name === text)
+}
+
+
 export type MovieInfo = {
 	contributorName: string,
 	urlText: string
@@ -12,13 +28,13 @@ export type MatchInfo = {
 	// ●/●昼という表記もあるのでいったんstringで……
 	日付: string,
 	試合数: number,
-	モード: string,
-	マップ: string,
-	勝利: Team,
+	モード: ModeName,
+	マップ: AmongUsMapName,
+	勝利: TeamName,
 	動画: ReadonlyArray<MovieInfo>,
 	概要: string,
-	参加者: Array<string>
-	インポスター: Array<string>,
+	参加者: ReadonlyArray<string>
+	インポスター: ReadonlyArray<string>,
 }
 
 

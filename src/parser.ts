@@ -1,16 +1,15 @@
 import { type Token } from "markdown-it";
-import { MatchInfo, Team, MovieInfo } from "./main";
+import { MatchInfo, TeamName, MovieInfo, ModeName, AmongUsMapName, amongUsMapNames, isAmoungUsMapName, isTeamName, isModeName } from "./main";
 
-type Mode = "クラシック" | "かくれんぼ"
 export type State = {
 	enableTag: string,
 	日付: string,
 	試合数: number,
-	モード: Mode,
+	モード: ModeName,
 }
 
 
-export const extractMatchCountAndMode = (text: string): [number, Mode] => {
+export const extractMatchCountAndMode = (text: string): [number, ModeName] => {
 	// 正規表現で「第」と「試合」の間の数字部分を抽出
 	const match = text.match(/第(\d+)試合/);
 	if (!match) {
@@ -21,7 +20,7 @@ export const extractMatchCountAndMode = (text: string): [number, Mode] => {
 		throw new Error('試合番号が数字として取得できません');
 	}
 
-	const mode: Mode = text.includes("かくれんぼ") ? "かくれんぼ" : "クラシック"
+	const mode: ModeName = text.includes("かくれんぼ") ? "かくれんぼ" : "クラシック"
 
 	return [number, mode];
 }
@@ -62,7 +61,7 @@ type MatchRawData = {
 	// 配列化する必要あり
 	"参加者": string,
 	"インポスター": string,
-	"勝利": Team,
+	"勝利": string,
 	"概要": string,
 	//【動画】は必ずあるが、その後が空
 	"動画": ReadonlyArray<MovieRawData>
@@ -144,21 +143,24 @@ export const getMatchInfo = (state: State, rawData: MatchRawData): MatchInfo => 
 		return getMovieInfo(movieRawData)
 	})
 	const memberNames = rawData.参加者.split(',');
-	const imposterNames = rawData.インポスター.split(',');
+	const imposterNames = rawData.インポスター.split(/[,、]/);
 
-
-	const matchInfo: MatchInfo = {
-		日付: state.日付,
-		試合数: state.試合数,
-		モード: state.モード,
-		マップ: rawData.マップ,
-		勝利: rawData.勝利,
-		動画: movieInfoList,
-		概要: rawData.概要,
-		参加者: memberNames,
-		インポスター: imposterNames
+	if (isModeName(state.モード) && isAmoungUsMapName(rawData.マップ) && isTeamName(rawData.勝利)) {
+		const matchInfo: MatchInfo = {
+			日付: state.日付,
+			試合数: state.試合数,
+			モード: state.モード,
+			マップ: rawData.マップ,
+			勝利: rawData.勝利,
+			動画: movieInfoList,
+			概要: rawData.概要,
+			参加者: memberNames,
+			インポスター: imposterNames
+		}
+		return matchInfo
+	} else {
+		throw new Error(`対応していないマップ名が記入されています。表記ブレ等を確認してください/マップ名: ${rawData.マップ}`)
 	}
-	return matchInfo
 }
 export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo> => {
 	// ループを跨いで管理する必要のある状態
