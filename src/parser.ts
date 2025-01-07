@@ -1,15 +1,20 @@
 import { type Token } from "markdown-it";
-import { MatchInfo, TeamName, MovieInfo, ModeName, AmongUsMapName, amongUsMapNames, isAmoungUsMapName, isTeamName, isModeName } from "./main";
+import { MatchInfo, MovieInfo, ModeName, getAmoungUsMapName, isTeamName, isModeName, AmongUsMapName, TeamName, amongUsMapNames } from "./main";
 
 export type State = {
 	enableTag: string,
 	日付: string,
 	試合数: number,
 	モード: ModeName,
+	マップ: AmongUsMapName,
+	参加者: Array<string>,
+	インポスター: Array<string>,
+	勝利: TeamName,
+	概要: string,
+	動画: Array<MovieInfo>
 }
 
-
-export const extractMatchCountAndMode = (text: string): [number, ModeName] => {
+export const parseMatchCount = (text: string): number => {
 	// 正規表現で「第」と「試合」の間の数字部分を抽出
 	const match = text.match(/第(\d+)試合/);
 	if (!match) {
@@ -19,163 +24,112 @@ export const extractMatchCountAndMode = (text: string): [number, ModeName] => {
 	if (isNaN(number)) {
 		throw new Error('試合番号が数字として取得できません');
 	}
-
-	const mode: ModeName = text.includes("かくれんぼ") ? "かくれんぼ" : "クラシック"
-
-	return [number, mode];
+	return number;
 }
 
-const splitLogAndMovieParts = (texts: Array<string>): Array<Array<string>> => {
-	const moviePartKeyword = "【動画】"
-	const index = texts.findIndex(text => text.includes(moviePartKeyword));
-	if (index === -1) {
-		// キーワードが見つからなかった場合、元の配列をそのまま返す
-		return [texts, []];
-	}
-	const beforeKeyword = texts.slice(0, index);
-	const afterKeyword = texts.slice(index + 1);
-	return [beforeKeyword, afterKeyword];
-}
 
 const separateKeyAndValue = (text: string): [string | null, string | null] => {
-	const separator = ":"
-	const parts = text.split(separator); // コロンでキーと値を分割
+	const separatorPattern = /:|：/
+	const parts = text.split(separatorPattern); // コロンでキーと値を分割
 	if (parts.length < 2) {
 		// コロンがないか、値が空の場合は無視
 		return [null, null]
 	}
 	const key = parts[0].trim();
 	// 文中に":"が有って3つ以上に分かれた場合に備えてコロン以降の部分をすべて結合する
-	const value = parts.slice(1).join(separator).trim();
+	const value = parts.slice(1).join(":").trim();
 	return [key, value]
 }
 
-type MovieRawData = {
-	nameText: string,
-	urlMarkdownText: string
-}
-// Googleドキュメントで見出し等も設定されていない、普通の文章部分を構造化したもの
-// ドキュメントの項目名を流用するためあえて日本語プロパティ名にしている
-type MatchRawData = {
-	"マップ": string,
-	// 配列化する必要あり
-	"参加者": string,
-	"インポスター": string,
-	"勝利": string,
-	"概要": string,
-	//【動画】は必ずあるが、その後が空
-	"動画": ReadonlyArray<MovieRawData>
-}
-
-const isMatchRawData = (data: any): data is MatchRawData => {
-	const propertyNames = ["マップ", "参加者", "インポスター", "勝利", "概要"]
-	const result = propertyNames.every((propertyNames: string) => {
-		return (data?.[propertyNames] !== undefined && typeof data[propertyNames] === "string")
-	})
-	if (result === false) { return false }
-
-	if (data?.動画 === undefined || Array.isArray(data.動画) === false) { return false }
-	if (data.動画.length >= 1) {
-		const result2 = data.動画.every((movieRawData: any) => {
-			const existsNameText = (movieRawData?.nameText !== undefined && typeof movieRawData.nameText === "string")
-			const existsUrlMarkdownText = (movieRawData?.urlMarkdownText !== undefined && typeof movieRawData.urlMarkdownText === "string")
-			if (existsNameText === false || existsUrlMarkdownText === false) { return false }
-			return true
-		})
-		if (result2 === false) { return false }
-	}
-
-	return result
-}
-
-export const parseToMatchRawData = (text: string): MatchRawData | null => {
+const getMovieInfoList = (text: string): Array<MovieInfo> => {
 	const lines = text.split('\n'); // 改行で行を分割
 
-	const [logParts, movieParts] = splitLogAndMovieParts(lines)
-	const result: any = {
-		"動画": []
-	};
-	logParts.forEach(line => {
-		const [key, value] = separateKeyAndValue(line)
-		if (key !== null && value !== null) { result[key] = value; }
-	});
+	const movieInfoList: Array<MovieInfo> = []
 
-	movieParts.forEach(line => {
+	lines.forEach(line => {
 		const [nameText, urlMarkdownText] = separateKeyAndValue(line)
 		if (nameText !== null && urlMarkdownText !== null) {
-			result["動画"].push({ nameText, urlMarkdownText });
+			const namePattern = /^(.+?)視点/
+			const nameMatch = nameText.match(namePattern);
+			let contributorName: string;
+			if (nameMatch) {
+				contributorName = nameMatch[1]; // マッチした人名部分を返す
+			} else {
+				contributorName = `その他（${nameText}）`
+			}
+			const urlPattern = /\[.*?\]\((https?:\/\/[^\s)]+)\)/;
+			const urlMatch = urlMarkdownText.match(urlPattern);
+			// マッチが見つかれば、URLを返す
+			// ちなみにGASにはURLクラスは存在しない
+			let urlText: string;
+			if (urlMatch) {
+				urlText = urlMatch[1].trim();
+			} else {
+				throw new Error(`動画のURLが抽出できません。/文章:${urlMarkdownText}`);
+			}
+
+			movieInfoList.push({ contributorName, urlText });
 		}
 	})
-	if (isMatchRawData(result)) {
-		return result
-	} else {
-		return null
-	}
+	return movieInfoList
 }
 
 
-const getMovieInfo = (rawData: MovieRawData): MovieInfo => {
-	const namePattern = /^(.+?)視点/
-	const nameMatch = rawData.nameText.match(namePattern);
-	let contributorName: string;
-	if (nameMatch) {
-		contributorName = nameMatch[1]; // マッチした人名部分を返す
-	} else {
-		throw new Error(`動画のデータから投稿者名が抽出できません。「●●視点」という表記である必要があります。/文章:${rawData.nameText}`);
+export const getMatchInfo = (state: State): MatchInfo => {
+
+	const matchInfo: MatchInfo = {
+		日付: state.日付,
+		試合数: state.試合数,
+		モード: state.モード,
+		マップ: state.マップ,
+		勝利: state.勝利,
+		動画: state.動画,
+		概要: state.概要,
+		参加者: state.参加者,
+		インポスター: state.インポスター
 	}
-	const urlPattern = /\[.*?\]\((https?:\/\/[^\s)]+)\)/;
-	const urlMatch = rawData.urlMarkdownText.match(urlPattern);
-	// マッチが見つかれば、URLを返す
-	let urlText: string;
-	if (urlMatch) {
-		urlText = urlMatch[1].trim();
-	} else {
-		throw new Error(`動画のURLが抽出できません。/文章:${rawData.urlMarkdownText}`);
-	}
-	const info: MovieInfo = { contributorName, urlText }
-	return info
+	return matchInfo
 }
 
-
-export const getMatchInfo = (state: State, rawData: MatchRawData): MatchInfo => {
-	// 生データは文字ベースなので配列やオブジェクトに変換
-	const movieInfoList = rawData.動画.map((movieRawData) => {
-		return getMovieInfo(movieRawData)
-	})
-	const memberNames = rawData.参加者.split(',');
-	const imposterNames = rawData.インポスター.split(/[,、]/);
-
-	if (isModeName(state.モード) && isAmoungUsMapName(rawData.マップ) && isTeamName(rawData.勝利)) {
-		const matchInfo: MatchInfo = {
-			日付: state.日付,
-			試合数: state.試合数,
-			モード: state.モード,
-			マップ: rawData.マップ,
-			勝利: rawData.勝利,
-			動画: movieInfoList,
-			概要: rawData.概要,
-			参加者: memberNames,
-			インポスター: imposterNames
-		}
-		return matchInfo
+// 見出し4(=h4)に来うる値
+type InputMode = Exclude<keyof State, "enableTag" | "日付" | "試合数">
+const isInputMode = (text: string): text is InputMode => {
+	const propertyNames = ["モード", "マップ", "参加者", "インポスター", "勝利", "概要", "動画"]
+	return propertyNames.some(propertyNames => propertyNames === text)
+}
+const parseInputMode = (text: string): InputMode => {
+	if (isInputMode(text)) {
+		return text
 	} else {
-		throw new Error(`対応していないマップ名が記入されています。表記ブレ等を確認してください/マップ名: ${rawData.マップ}`)
+		throw new Error(`入力モードとして受付できない値が入力されています /text:${text}`)
 	}
 }
+
 export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo> => {
 	// ループを跨いで管理する必要のある状態
 	// ドキュメントやスプレッドシートの項目名に合わせてあえて日本語プロパティ名にしている
-	const state: State = {
+	const initialState: State = {
 		enableTag: "",
 		日付: "",
 		試合数: 0,
-		モード: "クラシック"
+		モード: "クラシック",
+		マップ: "The Skeld",
+		参加者: [],
+		インポスター: [],
+		勝利: "クルー",
+		概要: "",
+		動画: []
 	}
+
+	let state: State = initialState
+
+	// 見出し4(=h4)に関してはkey→次の行の平文がvalueになるため、ループしながら前の行のkeyが何だったかを把握する必要がある
+	let inputMode: InputMode = "モード"
 
 	const matchInfoList: Array<MatchInfo> = []
 
 	tokens.forEach(token => {
-		// console.debug(token)
+		// console.info(token)
 		switch (token.type) {
 			case "heading_open":
 				state.enableTag = token.tag
@@ -191,19 +145,55 @@ export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo>
 						break;
 					case "h3":
 						// 試合番号
-						[state.試合数, state.モード] = extractMatchCountAndMode(token.content)
+						state.試合数 = parseMatchCount(token.content)
+						break;
+					case "h4":
+						inputMode = parseInputMode(token.content)
 						break;
 					case "":
 						// 「とりまとめシートの「試合ログ」に移動しました。」部分除け
 						if (state.試合数 !== 0) {
-							// 試合データ
-							const rawData = parseToMatchRawData(token.content)
-							if (rawData === null) {
-								console.warn("---解析に失敗しました---")
-								console.warn(token)
-							} else {
-								const matchInfo = getMatchInfo(state, rawData)
-								matchInfoList.push(matchInfo)
+							// console.info(state)
+							// console.info(`inputMode:${inputMode}/token.content:${token.content}`)
+							switch (inputMode) {
+								case "モード":
+									if (isModeName(token.content)) {
+										state[inputMode] = token.content
+									} else {
+										throw new Error(`${inputMode}として解釈できない値が入力されています/ ${token.content}`)
+									}
+									break;
+								case "マップ":
+									state[inputMode] = getAmoungUsMapName(token.content)
+									break;
+								case "参加者":
+								case "インポスター":
+									const names = token.content.split(/[,、]/);
+									state[inputMode] = names;
+									break;
+								case "勝利":
+									if (isTeamName(token.content)) {
+										state[inputMode] = token.content
+									} else {
+										throw new Error(`${inputMode}として解釈できない値が入力されています/ ${token.content}`)
+									}
+									break;
+								case "概要":
+									// 複数段落ある可能性があるので注意
+									state[inputMode] = (state[inputMode] === "") ? token.content : `\n${token.content}`
+									break;
+								case "動画":
+									const movieInfoList = getMovieInfoList(token.content)
+									state[inputMode] = movieInfoList
+
+									// 項目の順番が固定かつ、"動画"が最後であることを前提として、データが揃ったので試合データに変換して格納
+									const matchInfo: MatchInfo = getMatchInfo(state)
+									console.info("---試合データ---")
+									console.info(matchInfo)
+									matchInfoList.push(matchInfo)
+									break;
+								default:
+									break;
 							}
 						}
 						break;

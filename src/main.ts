@@ -6,6 +6,14 @@ export type ModeName = typeof modeNames[number]
 export const isModeName = (text: string): text is ModeName => {
 	return modeNames.some(name => name === text)
 }
+export const parseModeName = (text: string): ModeName => {
+	if (isModeName(text)) {
+		return text
+	} else {
+		throw new Error(`モード名として受付できない値が入力されています /text:${text}`)
+	}
+}
+
 export const teamNames = ["クルー", "インポスター"] as const
 export type TeamName = typeof teamNames[number]
 export const isTeamName = (text: string): text is TeamName => {
@@ -13,8 +21,12 @@ export const isTeamName = (text: string): text is TeamName => {
 }
 export const amongUsMapNames = ["The Skeld", "MIRA HQ", "Polus", "The Airship", "The Fungle"] as const;
 export type AmongUsMapName = typeof amongUsMapNames[number]
-export const isAmoungUsMapName = (text: string): text is AmongUsMapName => {
-	return amongUsMapNames.some(name => name === text)
+export const getAmoungUsMapName = (text: string): AmongUsMapName => {
+	const mapName = amongUsMapNames.find(name => name.toLowerCase() === text.toLowerCase())
+	if (mapName === undefined) {
+		throw new Error(`マップとして解釈できない値が入力されています /text:${text}`)
+	}
+	return mapName
 }
 
 
@@ -31,10 +43,10 @@ export type MatchInfo = {
 	モード: ModeName,
 	マップ: AmongUsMapName,
 	勝利: TeamName,
-	動画: ReadonlyArray<MovieInfo>,
+	動画: Array<MovieInfo>,
 	概要: string,
-	参加者: ReadonlyArray<string>
-	インポスター: ReadonlyArray<string>,
+	参加者: Array<string>
+	インポスター: Array<string>,
 }
 
 

@@ -13,7 +13,7 @@ export const read = (documentId: string): Array<Token> => {
 	// 「試合ログ」の次段落を探す
 	const matchLogStartIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("試合ログ")) + 1
 	// 「（テンプレート）」を探す
-	const matchLogEndIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("（テンプレート）")) + 1
+	const matchLogEndIndex = tokens.findIndex(mdInfo => mdInfo.content.includes("（テンプレート）"))
 	const matchLogTokens = tokens.slice(matchLogStartIndex, matchLogEndIndex)
 
 	return matchLogTokens
@@ -24,7 +24,19 @@ const getMemberColumnValues = (randomNames: ReadonlyArray<string>, imposterNames
 	// 2列目を解析して参加者の並び順も動的に取ろうかと思ったが、よく考えたら全員参加してないので空白があり取得できないし、
 	// 範囲を舐めて解析するのも面倒すぎるので、固定の値とする。
 	// また表記ブレがあるのでそれにも対応する
-	const order = [["ゆうやみ"], ["Marie", "まりえ"], ["Marie（こうすけ）", "こうすけ"], ["若丸", "ん若丸"], ["ようじょ", "ょぅl〝ょ"], ["源"], ["水金", "かけちよ"], ["あっちゃん"], ["透"], ["なおえ"], ["すっちん"]]
+	const order = [
+		["ゆうやみ"],
+		["Marie", "まりえ"],
+		["Marie（こうすけ）", "こうすけ"],
+		["若丸", "ん若丸"],
+		["ようじょ", "ょぅl〝ょ", "ょぅl゛ょ"],
+		["源"],
+		["水金", "かけちよ"],
+		["あっちゃん"],
+		["透"],
+		["なおえ"],
+		["すっちん"]
+	]
 	const flated_order = order.flatMap(order => order)
 
 	// 名前のセットを作成して簡単にチェックできるようにする
@@ -126,10 +138,11 @@ export const write = (spreadsheetId: string, matchInfoList: ReadonlyArray<MatchI
 	const sheet = spreadsheet.getSheetByName(targetSheetName);
 	if (sheet === null) { throw new Error(`${targetSheetName}が取得できませんでした`) }
 	const values = getValues(sheet, matchInfoList)
-	console.info(values)
+	// console.info(values)
 
 	//  データを書き込む範囲を設定
-	const range = sheet.getRange(151, 2, values.length, values[0].length);
+	const rowCount = 480
+	const range = sheet.getRange(rowCount, 2, values.length, values[0].length);
 
 	// // データを書き込み
 	range.setValues(values);
