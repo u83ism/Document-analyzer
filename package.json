@@ -8,12 +8,12 @@
     "deploy": "npm run build && npm run push"
   },
   "devDependencies": {
-    "@types/google-apps-script": "^1.0.83",
+    "@types/google-apps-script": "^1.0.91",
     "@types/markdown-it": "^14.1.2",
-    "esbuild": "^0.23.0",
+    "esbuild": "^0.24.2",
     "esbuild-gas-plugin": "^0.8.0",
-    "npm-check-updates": "^16.14.20",
-    "typescript": "^5.5.4"
+    "npm-check-updates": "^17.1.13",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
     "@google/clasp": "^2.4.2",
