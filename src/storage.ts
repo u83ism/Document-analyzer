@@ -132,7 +132,7 @@ const getValues = (sheet: GoogleAppsScript.Spreadsheet.Sheet, matchInfoList: Rea
 
 
 
-export const write = (spreadsheetId: string, matchInfoList: ReadonlyArray<MatchInfo>): void => {
+export const write = (spreadsheetId: string, matchInfoList: ReadonlyArray<MatchInfo>, rowCount: number): void => {
 	const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
 	const targetSheetName = "試合ログ"
 	const sheet = spreadsheet.getSheetByName(targetSheetName);
@@ -140,8 +140,6 @@ export const write = (spreadsheetId: string, matchInfoList: ReadonlyArray<MatchI
 	const values = getValues(sheet, matchInfoList)
 	// console.info(values)
 
-	//  データを書き込む範囲を設定
-	const rowCount = 480
 	const range = sheet.getRange(rowCount, 2, values.length, values[0].length);
 
 	// // データを書き込み

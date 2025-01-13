@@ -50,7 +50,10 @@ export type MatchInfo = {
 }
 
 
-export const test = (): void => {
+//  スプレッドシートの何行目からデータを書き込むかを指定する
+const rowCount = 540
+
+export const execute = (): void => {
 	// 深夜のAmongUs会のドキュメントを取得
 	const documentId = PropertiesService.getScriptProperties().getProperty("documentId");
 	if (documentId === null) { throw new Error(`documentIdを取得できませんでした。GASの「プロジェクトの設定」→「スクリプト プロパティ」を確認してください`) }
@@ -59,9 +62,9 @@ export const test = (): void => {
 	if (spreadsheetId === null) { throw new Error(`spreadsheetIdを取得できませんでした。GASの「プロジェクトの設定」→「スクリプト プロパティ」を確認してください`) }
 	const matchLogTokens = read(documentId)
 	const matchInfoList = getMatchInfoList(matchLogTokens)
-	write(spreadsheetId, matchInfoList)
+	write(spreadsheetId, matchInfoList, rowCount)
 }
 
 
 // GASから参照したい関数はglobalオブジェクトに渡してあげる必要がある
-(global as any).test = test;
+(global as any).execute = execute;
