@@ -27,7 +27,7 @@ const getMemberColumnValues = (randomNames: ReadonlyArray<string>, imposterNames
 	const order = [
 		["ゆうやみ"],
 		["Marie", "まりえ"],
-		["Marie（こうすけ）", "こうすけ"],
+		["Marie（こうすけ）", "こうすけ", "コウスケ"],
 		["若丸", "ん若丸"],
 		["ようじょ", "ょぅl〝ょ", "ょぅl゛ょ"],
 		["源"],

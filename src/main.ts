@@ -19,7 +19,7 @@ export type TeamName = typeof teamNames[number]
 export const isTeamName = (text: string): text is TeamName => {
 	return teamNames.some(name => name === text)
 }
-export const amongUsMapNames = ["The Skeld", "ehT dlekS", "MIRA HQ", "Polus", "The Airship", "The Fungle"] as const;
+export const amongUsMapNames = ["The Skeld", "dlekS ehT", "MIRA HQ", "Polus", "The Airship", "The Fungle"] as const;
 export type AmongUsMapName = typeof amongUsMapNames[number]
 export const getAmoungUsMapName = (text: string): AmongUsMapName => {
 	const mapName = amongUsMapNames.find(name => name.toLowerCase() === text.toLowerCase())
@@ -51,7 +51,7 @@ export type MatchInfo = {
 
 
 //  スプレッドシートの何行目からデータを書き込むかを指定する
-const rowCount = 791
+const rowCount = 811
 
 export const execute = (): void => {
 	// 深夜のAmongUs会のドキュメントを取得
