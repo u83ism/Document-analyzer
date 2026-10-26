@@ -1,5 +1,6 @@
 import { getMatchInfoList } from "./parser";
 import { read, write } from "./storage";
+import { fixDocumentHeadings, previewFixDocumentHeadings } from "./fixDocument";
 
 export const modeNames = ["クラシック", "かくれんぼ"] as const
 export type ModeName = typeof modeNames[number]
@@ -68,3 +69,5 @@ export const execute = (): void => {
 
 // GASから参照したい関数はglobalオブジェクトに渡してあげる必要がある
 (global as any).execute = execute;
+(global as any).previewFixDocumentHeadings = previewFixDocumentHeadings;
+(global as any).fixDocumentHeadings = fixDocumentHeadings;
