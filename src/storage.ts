@@ -35,7 +35,8 @@ const getMemberColumnValues = (randomNames: ReadonlyArray<string>, imposterNames
 		["あっちゃん"],
 		["透"],
 		["なおえ"],
-		["すっちん"]
+		["すっちん"],
+		["なおずみ"]
 	]
 	const flated_order = order.flatMap(order => order)
 
@@ -108,7 +109,12 @@ const getValues = (sheet: GoogleAppsScript.Spreadsheet.Sheet, matchInfoList: Rea
 
 		const movieColumnValue = getMovieColumnValume(info.動画)
 
-		const memberColumnValues = getMemberColumnValues(info.参加者, info.インポスター)
+		let memberColumnValues: Array<string>
+		try {
+			memberColumnValues = getMemberColumnValues(info.参加者, info.インポスター)
+		} catch (e) {
+			throw new Error(`日付:${info.日付} / 第${info.試合数}試合 でエラーが発生しました: ${e instanceof Error ? e.message : e}`)
+		}
 		// console.info(memberColumnValues)
 
 		const data = [
@@ -123,7 +129,6 @@ const getValues = (sheet: GoogleAppsScript.Spreadsheet.Sheet, matchInfoList: Rea
 			,
 			...memberColumnValues
 		]
-		if (data.length !== 19) { throw new Error(`データの個数が正しくありません。${data.length}のデータがあります。`) }
 
 		return data
 	})
@@ -138,7 +143,7 @@ export const write = (spreadsheetId: string, matchInfoList: ReadonlyArray<MatchI
 	const sheet = spreadsheet.getSheetByName(targetSheetName);
 	if (sheet === null) { throw new Error(`${targetSheetName}が取得できませんでした`) }
 	const values = getValues(sheet, matchInfoList)
-	// console.info(values)
+	if (values.length === 0) { throw new Error('書き込むデータがありません。ドキュメントのパースに失敗した可能性があります') }
 
 	const range = sheet.getRange(rowCount, 2, values.length, values[0].length);
 

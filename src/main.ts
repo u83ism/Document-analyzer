@@ -51,7 +51,7 @@ export type MatchInfo = {
 
 
 //  スプレッドシートの何行目からデータを書き込むかを指定する
-const rowCount = 811
+const rowCount = 945
 
 export const execute = (): void => {
 	// 深夜のAmongUs会のドキュメントを取得
