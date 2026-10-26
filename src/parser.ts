@@ -93,9 +93,9 @@ export const getMatchInfo = (state: State): MatchInfo => {
 
 // 見出し4(=h4)に来うる値
 type InputMode = Exclude<keyof State, "enableTag" | "日付" | "試合数">
+const inputModes: ReadonlyArray<InputMode> = ["モード", "マップ", "参加者", "インポスター", "勝利", "概要", "動画"]
 const isInputMode = (text: string): text is InputMode => {
-	const propertyNames = ["モード", "マップ", "参加者", "インポスター", "勝利", "概要", "動画"]
-	return propertyNames.some(propertyNames => propertyNames === text)
+	return inputModes.some(inputMode => inputMode === text)
 }
 const parseInputMode = (text: string): InputMode => {
 	if (isInputMode(text)) {
@@ -121,12 +121,32 @@ export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo>
 		動画: []
 	}
 
-	let state: State = initialState
+	let state: State = { ...initialState }
 
 	// 見出し4(=h4)に関してはkey→次の行の平文がvalueになるため、ループしながら前の行のkeyが何だったかを把握する必要がある
 	let inputMode: InputMode = "モード"
+	// 試合ごとに出てきた見出し4. 揃っていない試合はドキュメントの崩れなのでエラーにする
+	let seenInputModes: Array<InputMode> = []
 
 	const matchInfoList: Array<MatchInfo> = []
+
+	// 次の試合・日付の見出しが来た時点（または末尾）で、それまでの試合を確定させる
+	const commitMatch = (): void => {
+		if (state.試合数 === 0) { return }
+		const missingInputModes = inputModes.filter(mode => !seenInputModes.includes(mode))
+		if (missingInputModes.length > 0) {
+			throw new Error(`見出しが足りない試合があります。ドキュメントを修正してください /日付:${state.日付} / 第${state.試合数}試合 / 足りない見出し:${missingInputModes.join(",")}`)
+		}
+		const matchInfo: MatchInfo = getMatchInfo(state)
+		console.info("---試合データ---")
+		console.info(matchInfo)
+		matchInfoList.push(matchInfo)
+	}
+	// 前の試合の値を引き継がないよう、日付以外を初期状態に戻す
+	const resetMatch = (): void => {
+		state = { ...initialState, 日付: state.日付, 参加者: [], インポスター: [], 動画: [] }
+		seenInputModes = []
+	}
 
 	tokens.forEach(token => {
 		// console.info(token)
@@ -140,15 +160,22 @@ export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo>
 			case "inline":
 				switch (state.enableTag) {
 					case "h2":
+						commitMatch()
+						resetMatch()
 						// 日付（"6/2昼"とかあるのでstringにする必要あり注意）
 						state.日付 = token.content
+						state.enableTag = "h2"
 						break;
 					case "h3":
+						commitMatch()
+						resetMatch()
 						// 試合番号
 						state.試合数 = parseMatchCount(token.content)
+						state.enableTag = "h3"
 						break;
 					case "h4":
 						inputMode = parseInputMode(token.content)
+						seenInputModes.push(inputMode)
 						break;
 					case "":
 						// 「とりまとめシートの「試合ログ」に移動しました。」部分除け
@@ -179,18 +206,12 @@ export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo>
 									}
 									break;
 								case "概要":
-									// 複数段落ある可能性があるので注意
-									state[inputMode] = (state[inputMode] === "") ? token.content : `\n${token.content}`
+									// 複数段落ある可能性があるので、改行でつないで追記する
+									state[inputMode] = (state[inputMode] === "") ? token.content : `${state[inputMode]}\n${token.content}`
 									break;
 								case "動画":
-									const movieInfoList = getMovieInfoList(token.content)
-									state[inputMode] = movieInfoList
-
-									// 項目の順番が固定かつ、"動画"が最後であることを前提として、データが揃ったので試合データに変換して格納
-									const matchInfo: MatchInfo = getMatchInfo(state)
-									console.info("---試合データ---")
-									console.info(matchInfo)
-									matchInfoList.push(matchInfo)
+									// 複数段落ある可能性があるので追記する. 試合の確定は次の見出しが来た時点で行う
+									state[inputMode] = [...state[inputMode], ...getMovieInfoList(token.content)]
 									break;
 								default:
 									break;
@@ -201,6 +222,7 @@ export const getMatchInfoList = (tokens: ReadonlyArray<Token>): Array<MatchInfo>
 				break;
 		}
 	})
+	commitMatch()
 
 	return matchInfoList
 }
